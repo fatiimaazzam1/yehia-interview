@@ -3,46 +3,68 @@
 import { useState } from 'react';
 import { ApiError } from '@/app/lib/api-error';
 
-// Define what a Post looks like based on JSONPlaceholder
 type Post = {
   id: number;
   title: string;
   body: string;
 };
 
+// Maya's Testing Scenarios
+type Scenario = 'success' | 'slow' | 'http-error' | 'empty';
+
 export default function ClientExplorer() {
-  // 1. Track the 5 states
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle');
   const [posts, setPosts] = useState<Post[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // NEW: State for the dropdown scenario
+  const [scenario, setScenario] = useState<Scenario>('success');
 
-  // 2. The fetch function (only runs when clicked)
   const handleLoadPosts = async () => {
     setStatus('loading');
     setErrorMessage('');
 
     try {
-      const res = await fetch('https://jsonplaceholder.typicode.com/posts?userId=1');
+      let res: Response;
 
-      // HTTP Error check (Our ApiError from Mission 2)
+      // --- MAYA'S TESTING CONTROLS ---
+      if (scenario === 'http-error') {
+        // SIMULATE HTTP 503 (Using new Response)
+        // We pass this through the exact same res.ok check below!
+        res = new Response(JSON.stringify({ message: 'Simulated server error' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } else if (scenario === 'empty') {
+        // SIMULATE EMPTY SUCCESS (Using new Response)
+        res = new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } else {
+        // REAL API REQUEST (Success or Slow)
+        if (scenario === 'slow') {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+        res = await fetch('https://jsonplaceholder.typicode.com/posts?userId=1');
+      }
+
+      // --- SHARED LOGIC (Runs for Real AND Simulated responses) ---
       if (!res.ok) {
         throw new ApiError('Failed to fetch posts', res.status);
       }
 
       const data: Post[] = await res.json();
 
-      // Empty state check
       if (data.length === 0) {
         setStatus('empty');
         return;
       }
 
-      // Success state
       setPosts(data);
       setStatus('success');
 
     } catch (error) {
-      // Error state (Distinguishing API vs Network error)
       setStatus('error');
       if (error instanceof ApiError) {
         setErrorMessage(`API Error: ${error.message} (Status: ${error.status})`);
@@ -52,66 +74,53 @@ export default function ClientExplorer() {
     }
   };
 
-  // 3. Render the UI based on the current state
   return (
     <div className="p-4 border rounded-lg shadow-sm bg-white">
       <h2 className="text-xl font-bold mb-4">Explore All Posts</h2>
 
-      {/* State 1: Idle */}
+      {/* MAYA'S DEMO SELECTOR */}
+      <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Demo Scenario Selector (Testing Only)
+        </label>
+        <select
+          value={scenario}
+          onChange={(e) => setScenario(e.target.value as Scenario)}
+          className="w-full p-2 border border-gray-300 rounded-md"
+          disabled={status === 'loading'}
+        >
+          <option value="success">Success (Real API)</option>
+          <option value="slow">Slow (2s Delay, then Real API)</option>
+          <option value="http-error">HTTP Error (Simulated 503)</option>
+          <option value="empty">Empty Response (Simulated [])</option>
+        </select>
+        <p className="text-xs text-gray-500 mt-1">Applies to the next Load/Retry click.</p>
+      </div>
+
+      {/* 1. Idle */}
       {status === 'idle' && (
         <div>
           <p className="text-gray-600 mb-4">Click the button to load the full list of posts.</p>
-          <button
-            onClick={handleLoadPosts}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-          >
+          <button onClick={handleLoadPosts} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
             Load posts
           </button>
         </div>
       )}
 
-      {/* State 2: Loading */}
+      {/* 2. Loading */}
       {status === 'loading' && (
         <div>
           <p className="text-blue-600 mb-4">Loading posts... Please wait.</p>
-          {/* Disable the button to prevent duplicate clicks */}
           <button disabled className="bg-gray-400 text-white px-4 py-2 rounded cursor-not-allowed">
             Loading...
           </button>
         </div>
       )}
 
-      {/* State 4: Empty */}
-      {status === 'empty' && (
-        <div>
-          <p className="text-yellow-600 font-medium mb-4">No posts found.</p>
-          <button
-            onClick={handleLoadPosts}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-          >
-            Retry
-          </button>
-        </div>
-      )}
-
-      {/* State 5: Error */}
-      {status === 'error' && (
-        <div>
-          <p className="text-red-600 font-medium mb-2">Oops! Something went wrong.</p>
-          <p className="text-sm text-red-500 mb-4">{errorMessage}</p>
-          <button
-            onClick={handleLoadPosts}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-          >
-            Try Again
-          </button>
-        </div>
-      )}
-
-      {/* State 3: Success */}
+      {/* 3. Success */}
       {status === 'success' && (
         <div>
-          <ul className="space-y-4">
+          <ul className="space-y-4 mb-4">
             {posts.map((post) => (
               <li key={post.id} className="border-b pb-2">
                 <h3 className="font-bold text-gray-800">{post.title}</h3>
@@ -119,11 +128,29 @@ export default function ClientExplorer() {
               </li>
             ))}
           </ul>
-          <button
-            onClick={handleLoadPosts}
-            className="mt-4 bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300 transition"
-          >
+          <button onClick={handleLoadPosts} className="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300 transition">
             Reload Posts
+          </button>
+        </div>
+      )}
+
+      {/* 4. Empty */}
+      {status === 'empty' && (
+        <div>
+          <p className="text-yellow-600 font-medium mb-4">No posts found.</p>
+          <button onClick={handleLoadPosts} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* 5. Error */}
+      {status === 'error' && (
+        <div>
+          <p className="text-red-600 font-medium mb-2">Oops! Something went wrong.</p>
+          <p className="text-sm text-red-500 mb-4">{errorMessage}</p>
+          <button onClick={handleLoadPosts} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
+            Try Again
           </button>
         </div>
       )}
