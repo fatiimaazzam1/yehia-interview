@@ -25,37 +25,38 @@ export default function ClientExplorer() {
     setErrorMessage('');
 
     try {
-      let res: Response;
+      let res: Response;//variabke that holds the response
 
-      // --- MAYA'S TESTING CONTROLS ---
+      //MAYA'S TESTING CONTROLS 
       if (scenario === 'http-error') {
-        // SIMULATE HTTP 503 (Using new Response)
         // We pass this through the exact same res.ok check below!
         res = new Response(JSON.stringify({ message: 'Simulated server error' }), {
-          status: 503,
+          status: 503, //fake HTTP error status
           headers: { 'Content-Type': 'application/json' },
         });
       } else if (scenario === 'empty') {
         // SIMULATE EMPTY SUCCESS (Using new Response)
         res = new Response(JSON.stringify([]), {
-          status: 200,
+          status: 200,//fake successful status
           headers: { 'Content-Type': 'application/json' },
         });
       } else {
-        // REAL API REQUEST (Success or Slow)
+        // The Real Fetch for both 'success' and 'slow' scenarios
         if (scenario === 'slow') {
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
         res = await fetch('https://jsonplaceholder.typicode.com/posts?userId=1');
       }
 
-      // --- SHARED LOGIC (Runs for Real AND Simulated responses) ---
+      // SHARED LOGIC (Runs for Real AND Simulated responses)
       if (!res.ok) {
-        throw new ApiError('Failed to fetch posts', res.status);
+        throw new ApiError('Failed to fetch posts', res.status);// this throw for the fake 503
       }
 
+      //Parses res.json() into a JS object
       const data: Post[] = await res.json();
-
+      
+    
       if (data.length === 0) {
         setStatus('empty');
         return;

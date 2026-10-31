@@ -10,10 +10,12 @@ export default function Home() {
       <p className="mb-8 text-gray-600">Welcome to the dashboard.</p>
 
       <div className="grid gap-6">
-        <Suspense fallback={<div className="p-4 border rounded-lg bg-gray-100">Loading profile...</div>}>
-          <EmployeeProfile />
-        </Suspense>
+        {/* <Suspense fallback={<div className="p-4 border rounded-lg bg-gray-100">Loading profile...</div>}>
+          // <EmployeeProfile />
+        </Suspense> */}
 
+         <EmployeeProfile/>
+         
         <Suspense fallback={<div className="p-4 border rounded-lg bg-gray-100">Loading recent posts preview... (2s delay)</div>}>
           <RecentPostsPreview />
         </Suspense>
